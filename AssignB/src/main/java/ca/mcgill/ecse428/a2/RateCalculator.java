@@ -22,6 +22,11 @@ public class RateCalculator {
 	public static final String REGULAR = "Regular Parcel";
 	public static final String XPRESS = "Xpresspost";
 	public static final String PRIORITY = "Priority";
+	public static final int MAX_GIRTH_PLUS_LENGTH = 300;
+	public static final int MAX_LENGTH = 200;
+	public static final int MAX_WEIGHT = 30;
+	public static final float MIN_MEASUREMENT = 0.1f;
+	
 	private APIConnection api;
 
 	public RateCalculator() {
@@ -36,7 +41,7 @@ public class RateCalculator {
 	 * @param width width in cm
 	 * @param height height in cm
 	 * @param weight weight in kg
-	 * @param mode one of {@link #REGULAR}, {@link #XPRESS}
+	 * @param mode one of {@link #REGULAR}, {@link #XPRESS}, or {@link #PRIORITY}
 	 * @return the rate, float
 	 * @throws IllegalArgumentException if any argument is invalid
 	 */
@@ -99,7 +104,7 @@ public class RateCalculator {
 			for (Iterator<Messages.Message> iter = messageData.getMessage().iterator(); iter.hasNext();) {
 				Messages.Message aMessage = (Messages.Message) iter.next();
 				api.close();
-				throw (IllegalArgumentException)parseErrorMessage(aMessage.getCode(), aMessage.getDescription());
+				throw (IllegalArgumentException)parseErrorMessage(aMessage.getCode(), aMessage.getDescription(), from, to, length, width, height, weight, mode);
 			}
 		}
 		
@@ -111,14 +116,49 @@ public class RateCalculator {
 	 * meaningful message
 	 * @param code error code from server
 	 * @param msg error message
+	 * @param from
+	 * @param to
+	 * @param length
+	 * @param width
+	 * @param height
+	 * @param weight
+	 * @param mode
 	 * @return IllegalArgumentException if the exception is known to have been caused by an illegal argument
 	 * or Exception otherwise
 	 */
-	private Exception parseErrorMessage(String code, String msg) {
+	private Exception parseErrorMessage(String code, String msg, String from, String to, float length, float width, float height, float weight, String mode) {
 		System.out.println("Received msg: " + code + "::" + msg);
-		if(msg.contains("origin-postal-code")) return new IllegalArgumentException("Origin postal code is invalid");
-		else if(msg.matches(".*(?<!origin-)postal-code.*")) return new IllegalArgumentException("Destination postal code is invalid");
-		else return new Exception(code + "::" + msg);
+		if(msg.contains("origin-postal-code")) 
+			return new IllegalArgumentException("Origin postal code is invalid");
+		else if(msg.matches(".*(?<!origin-)postal-code.*")) 
+			return new IllegalArgumentException("Destination postal code is invalid");
+		else if(msg.contains("DimensionMeasurementType")) 
+			return new IllegalArgumentException(String.format("Value %.3f is invalid. Minimum allowed: %.3f", Float.parseFloat(msg.split("'")[1]), MIN_MEASUREMENT));
+		else if(msg.equals("No services are appropriate for the shipment of the defined parcel.  Validate the parcel criteria against product specifications.")) 
+			return diagnoseMessage(from, to, length, width, height, weight, mode);
+		else 
+			return new Exception(code + "::" + msg);
+	}
+
+	/**
+	 * Use when server returns "No service appropriate" message.
+	 * @param from
+	 * @param to
+	 * @param length
+	 * @param width
+	 * @param height
+	 * @param weight
+	 * @param mode
+	 * @return IllegalArgumentException if the exception is known to have been caused by an illegal argument
+	 * or Exception otherwise
+	 */
+	private Exception diagnoseMessage(String from, String to, float length, float width, float height, float weight, String mode) {
+		
+		/* Check girth + length */
+		if(length + 2*width + 2*height > MAX_GIRTH_PLUS_LENGTH) return new IllegalArgumentException("Girth + length exceeds maximum allowed (" + MAX_GIRTH_PLUS_LENGTH + " cm)");
+		else if(length > MAX_LENGTH) return new IllegalArgumentException("Length exceeds maximum allowed (" + MAX_LENGTH + " cm)");
+		else if(weight > MAX_WEIGHT) return new IllegalArgumentException("Weight exceeds maximum allowed (" + MAX_WEIGHT + " kg)");
+		return new Exception("Unexpected server exception");
 	}
 
 }

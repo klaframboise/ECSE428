@@ -94,4 +94,73 @@ public class TestRateCalculator {
 		
 	}
 
+	@Test
+	/**
+	 * Max length + girth = 300 cm
+	 * girth = 2*height + 2*width
+	 */
+	public void testMaxLengthPlusGirth() {
+		
+		try {
+			calc.getRate(from, to, 199, 30, 30, weight, RateCalculator.XPRESS);
+			fail("No exception caught");
+		} catch (IllegalArgumentException e) {
+			System.out.println(e.getMessage());
+		} catch (Exception e) {
+			fail("Caught an unexpected exception: " + e.getMessage());
+		}
+		
+	}
+	
+	@Test
+	/**
+	 * Max length = 200 cm
+	 */
+	public void testMaxLength() {
+		
+		try {
+			calc.getRate(from, to, 225, 1, 1, weight, RateCalculator.XPRESS);
+			fail("No exception caught");
+		} catch (IllegalArgumentException e) {
+			System.out.println(e.getMessage());
+		} catch (Exception e) {
+			fail("Caught an unexpected exception: " + e.getMessage());
+		}
+		
+	}
+	
+	@Test
+	/**
+	 * Max length = 30 kg
+	 */
+	public void testMaxWeight() {
+		
+		try {
+			calc.getRate(from, to, length, width, height, 31, RateCalculator.XPRESS);
+			fail("No exception caught");
+		} catch (IllegalArgumentException e) {
+			System.out.println(e.getMessage());
+		} catch (Exception e) {
+			fail("Caught an unexpected exception: " + e.getMessage());
+		}
+		
+	}
+	
+	@Test
+	/**
+	 * Min measure accepted by api = 0.1 cm
+	 */
+	public void testMinMeasurement() {
+		
+		try {
+			calc.getRate(from, to, .09f, 1f, 1f, weight, RateCalculator.XPRESS);
+			fail("No exception caught");
+		} catch (IllegalArgumentException e) {
+			System.out.println(e.getMessage());
+		} catch (Exception e) {
+			fail("Caught an unexpected exception: " + e.getMessage());
+		}
+		
+	}
+	
 }
